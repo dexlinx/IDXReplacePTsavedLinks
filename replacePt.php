@@ -57,11 +57,11 @@ curl_setopt_array($curl, array(
   CURLOPT_CUSTOMREQUEST => $request,
   CURLOPT_HTTPHEADER => array(
     "accesskey:".$accesskey,
-	"ancillary:".$ancillarykey,
-    "apiversion: {{apiversion}}",
+    "ancillary:".$ancillarykey,
+    "apiversion: 1.4.0",
     "cache-control: no-cache",
     "content-type: application/x-www-form-urlencoded",
-    "outputtype: {{outputtype}}",
+    "outputtype: json",
      ),
 ));
 
