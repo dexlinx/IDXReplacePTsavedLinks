@@ -32,6 +32,7 @@ Use Case Example:
 
 //IDX Broker API Key
 $accesskey = $_POST['apiKey'];
+$ancillarykey = $_POST['ancillary'];
 
 //API Call CURL code
 //--------------------------------------------------------------------
@@ -56,6 +57,7 @@ curl_setopt_array($curl, array(
   CURLOPT_CUSTOMREQUEST => $request,
   CURLOPT_HTTPHEADER => array(
     "accesskey:".$accesskey,
+	"ancillary:".$ancillarykey,
     "apiversion: {{apiversion}}",
     "cache-control: no-cache",
     "content-type: application/x-www-form-urlencoded",
@@ -88,17 +90,15 @@ $response = apiCall('https://api.idxsandbox.com/clients/savedlinks','GET','',$ac
 //Form to perform Dry-Run (No Updates)
 ?>
 <div class="mainContent">
-<b>Note:</b> Leave un-checked to see the results w/o updating links. Check when you're ready to update your saved links.<p>
 <form action="replacePt.php" method="post">
   API Key: <input type="text" name="apiKey" value='<?php echo $_POST['apiKey']; ?>'><br>
-  <input type="checkbox" name="dryRun" value="run">Run<br>
+  Ancillary Key: <input type="text" name="ancillary" value='<?php echo $_POST['ancillary']; ?>'><br>
+  <input type="checkbox" name="dryRun" value="run">Run: <font color="red">Leave un-checked to see the results w/o updating links. Check when you're ready to update your saved links.</font><p><br>
   <input type="submit" value="Submit">
 </form> 
 <hr>
 
 <?php
-
-echo $_POST["dryRun"]."<p>";
 
 //Decode the List of Saved Links
 $savedLinksDecoded = json_decode($response, true);
@@ -158,7 +158,7 @@ if (strpos($value[linkName],'-') == true){
 			
 		}
 		
-if ($_GET["dryRun"] == "run") {
+if ($_POST["dryRun"] == "run") {
 
 //Data string for the API Call to change PT		
 $data = array('queryString' => $completedQueryString);
@@ -167,6 +167,10 @@ $data = http_build_query($data);
 //API Call to Change the PT of this Saved Link
 $apiUrl = "https://api.idxsandbox.com/clients/savedlinks/".$value[id];
 $updateSavedLink = apiCall($apiUrl,'POST',$data,$accesskey);		
+
+if (!empty($updateSavedLink)){
+	exit("===================== API Limit Reached! ===================== ");
+}
 
 	}
 	}
