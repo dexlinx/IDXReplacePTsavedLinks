@@ -1,3 +1,19 @@
+<html>
+<head>
+<title>Pt Replacement</title>
+<style>
+.mainContent {
+    width: 75%;
+    border-style: solid;
+    margin: auto;
+    padding: 20px;
+    border-color: blue;
+    background-color: #e7f5e7;
+}
+</style>
+</head>
+<body>
+
 <?php
 
 /*
@@ -15,7 +31,7 @@ Use Case Example:
 /* Correct PT */ $correctPt = 'pt=2';
 
 //IDX Broker API Key
-$accesskey = '[APIKEY]';
+$accesskey = $_POST['apiKey'];
 
 //API Call CURL code
 //--------------------------------------------------------------------
@@ -35,6 +51,8 @@ curl_setopt_array($curl, array(
   CURLOPT_MAXREDIRS => 10,
   CURLOPT_TIMEOUT => 30,
   CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+  CURLOPT_SSL_VERIFYHOST => 0,
+  CURLOPT_SSL_VERIFYPEER => 0,
   CURLOPT_CUSTOMREQUEST => $request,
   CURLOPT_HTTPHEADER => array(
     "accesskey:".$accesskey,
@@ -64,20 +82,50 @@ if ($err) {
 }
 //--------------------------------------------------------------------
 //--------------------------------------------------------------------
-$response = apiCall('https://api.idxbroker.com/clients/savedlinks','GET','',$accesskey);
+$response = apiCall('https://api.idxsandbox.com/clients/savedlinks','GET','',$accesskey);
+
+
+//Form to perform Dry-Run (No Updates)
+?>
+<div class="mainContent">
+<b>Note:</b> Leave un-checked to see the results w/o updating links. Check when you're ready to update your saved links.<p>
+<form action="replacePt.php" method="post">
+  API Key: <input type="text" name="apiKey" value='<?php echo $_POST['apiKey']; ?>'><br>
+  <input type="checkbox" name="dryRun" value="run">Run<br>
+  <input type="submit" value="Submit">
+</form> 
+<hr>
+
+<?php
+
+echo $_POST["dryRun"]."<p>";
 
 //Decode the List of Saved Links
 $savedLinksDecoded = json_decode($response, true);
 
+$counter = 1;
+
+?>
+
+
+
+<?php
+//Die Gracefully if no API Key
+if (empty($_POST['apiKey'])){
+	echo "<font color=red>Please Enter Your API Key</font>";
+}else{
 //Loop Through the Saved Links
 foreach ($savedLinksDecoded as $key => $value){
+
+
 
 //Get the Saved Links with - in the Name (Created By Migration Script)
 if (strpos($value[linkName],'-') == true){
 	
 	//Split the Saved Links to Get Original Name
 	$splitLinkName = preg_split("/-/", $value[linkName]);
-	echo $splitLinkName[0].": ";	
+	echo "<b><font color=blue>".$counter++." - </font></b>";
+	echo "<b>Link Name & ID:</b> ".$splitLinkName[0].": ";	
 	
 	//Now, I need the Saved Link ID of the Original Link
 	foreach ($savedLinksDecoded as $key => $value){
@@ -89,8 +137,8 @@ if (strpos($value[linkName],'-') == true){
 		
 		$updatedQueryString = str_replace($wrongPt,$correctPt,$value[queryString]);
 	 
-		echo "Original Query: ".$value[queryString]."<br>";
-		echo "New Query: ".$updatedQueryString."<p>";
+		echo "<b>Original Query:</b> ".$value[queryString]."<br>";
+		echo "<b>New Query:</b> ".$updatedQueryString."<p>";
 	
 		//Explode the Query String into an Array
 		$myQueryString = explode("&",$updatedQueryString);
@@ -109,18 +157,24 @@ if (strpos($value[linkName],'-') == true){
 			
 			
 		}
+		
+if ($_GET["dryRun"] == "run") {
 
 //Data string for the API Call to change PT		
 $data = array('queryString' => $completedQueryString);
 $data = http_build_query($data); 
 
 //API Call to Change the PT of this Saved Link
-$apiUrl = "https://api.idxbroker.com/clients/savedlinks/".$value[id];
+$apiUrl = "https://api.idxsandbox.com/clients/savedlinks/".$value[id];
 $updateSavedLink = apiCall($apiUrl,'POST',$data,$accesskey);		
-	
+
+	}
 	}
 }
 }
 }
-
+}
 ?>
+</div>
+</body>
+</html>
