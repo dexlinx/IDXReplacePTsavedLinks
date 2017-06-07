@@ -1,4 +1,5 @@
 <?php
+session_start();
 /*
 /~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -88,7 +89,7 @@ if ($err) {
 //--------------------------------------------------------------------
 //FUNCTION: Form Inputs
 //--------------------------------------------------------------------
-function inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun){
+function inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun,$lastCount){
 
 if ($runType == dry){echo "<h3>Preview List of Links to be changed...</h3>";}
 if ($runType == first){echo "<h3>Start Updating Your Links...</h3>";}
@@ -98,8 +99,10 @@ echo "<table border=0>";
 
 
 	if ($runType == dry){//Only Show Links
+		session_destroy();
 		echo "<tr><td>API Key:</td><td> <input type='text' name='apiKey' value='".$accesskey."'></td></tr>";
 		echo "<input type='hidden' name='dryRun' value='dryruncomplete'>";
+		echo "<input type='hidden' name='getCount' value='getCount'>";
 	}elseif($runType == realRun || $runType == doMore){//Ready for First Run
 		
 		if (!isset($startKey)){
@@ -112,7 +115,16 @@ echo "<table border=0>";
 		echo "<tr><td>Ancillary Key (optional):</td><td> <input type='text' name='ancillary' value='".$ancillarykey."'></td></tr>";
 		echo "<input type='hidden' name='dryRun' value='dryruncomplete'>";
 		echo "<input type='hidden' name='firstRun' value='firstRunComplete'>";
-	}
+		echo "<input type='hidden' name='lastcount' value='".$lastCount."'>";
+		
+		if ($runType == doMore){
+			echo "Total Links To Process: ".$_SESSION['totalLinks']."<p>";
+			echo "Total Links Processed: ".$lastCount."<p>";
+			$remaining = $_SESSION['totalLinks']-$lastCount;
+			echo "Remaining: ".$remaining."<p>";
+		}
+
+	}else{echo "<h1>NONE LEFT</h1>";}
 
 	
 echo "</table>";
@@ -124,8 +136,6 @@ echo "</table>";
 	}else{
 		echo "<input type='submit' value='Start Updates'>";
 	}
-
-
 
 echo "</form>";
 echo "<hr>";	
@@ -158,24 +168,22 @@ $firstRun = $_POST['firstRun'];
 
 //Gather Saved Links
 //-------------------------------------
-$response = apiCall('https://api.idxbroker.com/clients/savedlinks','GET','',$accesskey);
+$response = apiCall('https://api.idxsandbox.com/clients/savedlinks','GET','',$accesskey);
 
-
-echo "-->".$startKey."<--<p>";
 
 //Show Form
 //-------------------------------------
 if (!isset($dryRunComplete)){
 	$runType = dry;
-	inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun);
+	inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun,$lastCount);
 }elseif(!isset($firstRun)){
 	$runType = realRun;
-	inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun);
+	inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun,$lastCount);
 }
-
 
 //Decode the List of Saved Links
 $savedLinksDecoded = json_decode($response, true);
+$numLinks = count($savedLinksDecoded);
 
 $counter = 1; //Counting Inner Loop
 
@@ -190,17 +198,15 @@ if (empty($accesskey)){
 //Loop Through the Saved Links
 foreach ($savedLinksDecoded as $key => $value){
 
-echo "Key---->".$key."<p>";
-echo "Start Key-->".$startKey."<p>";
-echo "numToRun-->".$numToRun."<p>";
-
+if ($key >= $startKey){
+	
 //Get the Saved Links with - in the Name (Created By Migration Script)
 if (strpos($value[linkName],'-') == true){
 	
 	//Split the Saved Links to Get Original Name
 	$splitLinkName = preg_split("/-/", $value[linkName]);
 	$stopKey = $key;
-	echo "<b><font color=blue>".$counter."(".$stopKey.") - </font></b>";
+	//echo "<b><font color=blue>".$counter."(".$stopKey.") - </font></b>";
 	echo "<b>Link Name & ID:</b> ".$splitLinkName[0].": ";	
 	
 	
@@ -238,14 +244,14 @@ if (strpos($value[linkName],'-') == true){
 //This is where the work happens, updating the saved links with the correct Pt
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	
-if ($_POST["dryRun"] == "run") {
+if (isset($numToRun)) {
 
 //Data string for the API Call to change PT		
 $data = array('queryString' => $completedQueryString);
 $data = http_build_query($data); 
 
 //API Call to Change the PT of this Saved Link
-$apiUrl = "https://api.idxbroker.com/clients/savedlinks/".$value[id];
+$apiUrl = "https://api.idxsandbox.com/clients/savedlinks/".$value[id];
 $updateSavedLink = apiCall($apiUrl,'POST',$data,$accesskey);		
 
 	}
@@ -254,10 +260,6 @@ $updateSavedLink = apiCall($apiUrl,'POST',$data,$accesskey);
 	
 }//If Statement; getting ID of orig. saved link
 }//Internal For Each Loop
-
-echo "Counter State: ".$counter."<p>";
-
-
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Limit the Number of API Calls ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -270,27 +272,31 @@ if (isset($dryRunComplete) && $numToRun > 0){
 		$hour_ago = date('g:iA ', time() - 3600); //When to Start the next run
 		$runType = 'doMore';
 		$startKey = $stopKey;
+		$lastCount = $_POST['lastcount']+$counter;
 		
 		echo "<hr>";
 		echo "<h3>You Can Run This again at: ".$hour_ago."</h3>";
 				
-		inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun);
+		inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun,$lastCount);
 
 		exit("The Next Run Will Start On Key: $stopKey.");//Exit this run with friendly message
 	
-	}else{echo "All Done";}
+	}
 	}
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+if (isset($_POST['getCount'])){
+$_SESSION['totalLinks'] = $counter;	
+}
 $counter++;
-
 
 }//If Statement; getting links with - in the name
 
-
-
-
+}
 } //Main For Each Loop
+
+echo "<center><h1>End of Saved Links</h1></center>";
+
 } //Parent If/Else Statement
 ?>
 </div>
