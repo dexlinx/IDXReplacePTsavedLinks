@@ -35,6 +35,12 @@ input.readOnly {
     padding: 3px;
 }
 </style>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+<script>
+setTimeout(function() {
+    $('.runUpdates').trigger('click');
+}, 4200000);
+</script>
 </head>
 <body>
 <div class='mainContent'>
@@ -132,7 +138,7 @@ echo "</table>";
 	if ($runType == dry){
 		echo "<input type='submit' value='Dry Run'>";
 	}elseif($runType == doMore){
-		echo "<input type='submit' value='Continue Updates'>";
+		echo "<input type='submit' value='Continue Updates' class='runUpdates'>";
 	}else{
 		echo "<input type='submit' value='Start Updates'>";
 	}
@@ -276,6 +282,7 @@ if (isset($dryRunComplete) && $numToRun > 0){
 		
 		echo "<hr>";
 		echo "<h3>You Can Run This again at: ".$hour_ago."</h3>";
+		echo "<h3><font color=red>NOTE: Leave Page Open and We will Auto-Run in 70 Minutes</font></h3>";
 				
 		inputForm($ancillarykey,$accesskey,$runType,$startKey,$numToRun,$lastCount);
 
